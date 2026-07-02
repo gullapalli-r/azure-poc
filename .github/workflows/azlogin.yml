@@ -1,35 +1,33 @@
 name: AZ Login
  
 on:
-workflow_dispatch:
-inputs:
-resource_group:
-description: 'The name of the resource group'
-required: false
+  workflow_dispatch:
+    inputs:
+    resource_group:
+    description: 'The name of the resource group'
+    required: false
  
 permissions:
-id-token: write
-contents: read
+  id-token: write
+  contents: read
  
 jobs:
-create-backup-vault:
-name: Azure Login
-runs-on: ubuntu-latest
+    create-backup-vault:
+    name: Azure Login
+    runs-on: ubuntu-latest
  
 steps:
 - name: Checkout repository
 uses: actions/checkout@v2
 
-- name: Azure login
-uses: azure/login@v1
-with:
-client-id: ${{ secrets.AZURE_CLIENT_ID }}
-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Azure CLI login
+        uses: azure/login@v3
+        with:
+          client-id: ${{secrets.AZURE_CLIENT_ID}}
+          tenant-id: ${{secrets.AZURE_TENANT_ID}}
+          subscription-id: ${{secrets.AZURE_SUBSCRIPTION_ID}}
 
-- name: List all resource groups
-run: |
-az group list --output table
-- name: show current subscription
-run: |
-az account list --all --output table
+      - name: List all resource groups
+        run: |
+          az group list --output table
+
