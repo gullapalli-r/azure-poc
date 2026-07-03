@@ -14,19 +14,4 @@
     "AKS_NAMESPACES": [],
   },
 }
-{
-  "rg-spoke-eastus": {
-    "RESOURCE_GROUP": "rg-hub-eastus",
-    "APP_RESOURCE_GROUP": "rg-hub-eastus",
-    "LANDING_ZONE_PATH": "pre-prod/eastus/hub",
-    "AKS": "",
-    "KEYVAULT": "",
-    "REGION": "eastus",
-    "DEPLOYMENT_STACK_NAME": "rg-hub-eastus",
-    "ACTION_ON_UNMANAGE": "detachAll",
-    "PFX": "",
-    "RUNNER": [""],
-    "RUNNER_VM": "",
-    "AKS_NAMESPACES": [],
-  },
-}
+
