@@ -1,0 +1,33 @@
+name: Expand Matrix
+description: |
+  Expand the JSON matrix to work the way we want in this repository.
+  This will take the top level properties and apply them to the
+  `include` elements individually, and remove the top level properties.
+inputs:
+  matrix:
+    required: true
+    description: Matrix JSON string read from the file
+    type: string
+outputs:
+  matrix:
+    description: Matrix JSON output
+    value: ${{ steps.process.outputs.matrix }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Process Matrix
+      id: process
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const json = `${{ inputs.matrix }}`
+          const source = JSON.parse(json)
+          // source has root level properties, and an "include" array
+          // separate the include from the properties
+          const { include, ...properties } = source
+          // apply the include on top of the default properties
+          const mapped = include.map(i => ({ ...properties, ...i }))
+          // return in a matrix format with just the "include" array
+          const mappedString = JSON.stringify({ include: mapped })
+          core.setOutput('matrix', mappedString)

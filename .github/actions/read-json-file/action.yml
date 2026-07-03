@@ -1,0 +1,28 @@
+name: Read File Contents
+description: |
+  Read the contents of the file and output to a variable.
+  Clean it up assuming we'll use `fromJSON()` to convert it.
+inputs:
+  file:
+    required: true
+    description: Path to the file to read
+    type: string
+outputs:
+  contents:
+    description: Contents of the file
+    value: ${{ steps.read.outputs.contents }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Read File
+      id: read
+      shell: bash
+      run: |
+        contents=$(<"${{ inputs.file }}")
+
+        # remove newlines
+        contents="${contents//$'\n'/}"
+        contents="${contents//$'\r'/}"
+
+        echo "contents=${contents}" >> "$GITHUB_OUTPUT"

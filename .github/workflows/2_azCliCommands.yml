@@ -1,0 +1,57 @@
+name: '2_RunAzCliCommands'
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: Target environment (nice name)
+        required: true
+        type: choice
+        options:
+          - rg-hub-eastus
+
+      command:
+        description: Input az cli command
+        required: true
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  config:
+    uses: ./.github/workflows/workflow-map-configuration.yaml
+    with:
+      configuration: ${{ inputs.configuration }}
+
+  setup:
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.config.outputs.resource_group }}
+    needs: config
+    outputs:
+      selected_runner: '${{ steps.get-variables.outputs.runner }}'
+    env:
+      region: ${{ needs.config.outputs.region }}
+      resourceGroup: ${{ needs.config.outputs.resource_group }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Try AZ CLI
+        run: |
+          az version
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Run az cli command
+        run: |
+          ## BE CAREFUL ALWAYS ADD COMMAND FOR DEBUG PURPOSE ON A PATCH BRANCH, NEVER !!! ON MAIN BRANCH
+          ## ONLY USE THIS WORKFLOW FOR EDGE CASES WHICH ARE NOT FEASIBLE THROUGH BICEP AND EXISTING AUTOMATIONS.
+          echo '${{ inputs.command }}'
+          ${{ inputs.command }}

@@ -1,0 +1,104 @@
+name: Map Configuration to Environment
+on:
+  workflow_call:
+    inputs:
+      configuration:
+        description: Name of the configuration to map
+        type: string
+        required: true
+    outputs:
+      resource_group:
+        description: Environment name mapped from configuration
+        value: ${{ jobs.map.outputs.resource_group }}
+      app_resource_group:
+        value: ${{ jobs.map.outputs.app_resource_group }}
+      landing_zone_path:
+        value: ${{ jobs.map.outputs.landing_zone_path }}
+      aks:
+        value: ${{ jobs.map.outputs.aks }}
+      keyvault:
+        value: ${{ jobs.map.outputs.keyvault }}
+      region:
+        value: ${{ jobs.map.outputs.region }}
+      cmdb_link:
+        value: ${{ jobs.map.outputs.cmdb_link }}
+      apps_of_apps_path:
+        value: ${{ jobs.map.outputs.apps_of_apps_path }}
+      deployment_stack_name:
+        value: ${{ jobs.map.outputs.deployment_stack_name }}
+      action_on_unmanage:
+        value: ${{ jobs.map.outputs.action_on_unmanage }}
+      pfx:
+        value: ${{ jobs.map.outputs.pfx }}
+      runner:
+        value: ${{ jobs.map.outputs.runner }}
+      runner_vm:
+        value: ${{ jobs.map.outputs.runner_vm }}
+      aks_namespaces:
+        value: ${{ jobs.map.outputs.aks_namespaces }}
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: Name of the configuration to map
+        type: string
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  map:
+    runs-on: ubuntu-latest
+    env:
+      mapping-file: .github/workflows/configuration-environment-map.jsonc
+    outputs:
+      resource_group: ${{ steps.map.outputs.resource_group }}
+      app_resource_group: ${{ steps.map.outputs.app_resource_group }}
+      landing_zone_path: ${{ steps.map.outputs.landing_zone_path }}
+      aks: ${{ steps.map.outputs.aks }}
+      keyvault: ${{ steps.map.outputs.keyvault }}
+      region: ${{ steps.map.outputs.region }}
+      cmdb_link: ${{ steps.map.outputs.cmdb_link }}
+      apps_of_apps_path: ${{ steps.map.outputs.apps_of_apps_path }}
+      action_on_unmanage: ${{ steps.map.outputs.action_on_unmanage }}
+      deployment_stack_name: ${{ steps.map.outputs.deployment_stack_name }}
+      pfx: ${{ steps.map.outputs.pfx }}
+      runner: ${{ steps.map.outputs.runner }}
+      runner_vm: ${{ steps.map.outputs.runner_vm }}
+      aks_namespaces: ${{ steps.map.outputs.aks_namespaces }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Determine Mapping
+        id: map
+        shell: pwsh
+        run: |
+          $mapping = Get-Content -Raw -Path "${{ env.mapping-file }}" | ConvertFrom-Json -AsHashtable
+          $result = $mapping["${{ inputs.configuration }}"]
+          if ($null -eq $result) {
+            Write-Output "::error title=Unexpected Configuration::'${{ inputs.configuration }}' is not in the mapping file '${{ env.mapping-file }}'. Ensure you're using the right configuration name or update the file to include it. (Note: the file is case-sensitive)"
+            exit 1
+          } else {
+            # Cast $result to a PSCustomObject to access its properties
+            $resultObject = [PSCustomObject]$result
+
+            echo "resource_group=$($resultObject.RESOURCE_GROUP)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "app_resource_group=$($resultObject.APP_RESOURCE_GROUP)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "landing_zone_path=$($resultObject.LANDING_ZONE_PATH)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "aks=$($resultObject.AKS)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "keyvault=$($resultObject.KEYVAULT)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "region=$($resultObject.REGION)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "cmdb_link=$($resultObject.CMDB_LINK)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "apps_of_apps_path=$($resultObject.APPS_OF_APPS_PATH)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "deployment_stack_name=$($resultObject.DEPLOYMENT_STACK_NAME)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "action_on_unmanage=$($resultObject.ACTION_ON_UNMANAGE)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "pfx=$($resultObject.PFX)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "runner=$($resultObject.RUNNER)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "runner_vm=$($resultObject.RUNNER_VM)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            echo "aks_namespaces=$($resultObject.AKS_NAMESPACES)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+            # Outputting the constructed string.
+            Write-Output "::notice title=Mapped Configuration::'${{ inputs.configuration }}' => $($resultObject | ConvertTo-Json -Compress | Out-String)"
+          }

@@ -1,0 +1,60 @@
+name: Load Environment Configuration
+description: Load the configuration file for the current environment and output variables
+inputs:
+  environment:
+    description: Name of the environment configuration to load
+    required: true
+outputs:
+  config_name:
+    description: Name of the configuration
+    value: ${{ fromJson(steps.config.outputs.json).configName }}
+  app_resource_group:
+    description: Name of the application resource group
+    value: ${{ fromJson(steps.config.outputs.json).appResourceGroup }}
+  data_resource_group:
+    description: Name of the data resource group
+    value: ${{ fromJson(steps.config.outputs.json).dataResourceGroup }}
+  aks_cluster_name:
+    description: Name of the AKS cluster
+    value: ${{ fromJson(steps.config.outputs.json).aks }}
+  region:
+    description: Region location where this environment should be deployed
+    value: ${{ fromJson(steps.config.outputs.json).region }}
+  runner_label:
+    description: Label for the local runner that will be able to bootstrap AKS
+    value: ${{ fromJson(steps.config.outputs.json).runnerLabel }}
+  json:
+    description: JSON value of the whole configuration
+    value: ${{ steps.config.outputs.json }}
+  appVmName:
+    description: Name of the APP RG VM
+    value: ${{ fromJson(steps.config.outputs.json).appVmName }}
+  dataVmName:
+    description: Name of the DATA RG VM
+    value: ${{ fromJson(steps.config.outputs.json).dataVmName }}
+  appLinuxVmAdGroup:
+    description: Name of the APP RG Linux VM AD Group
+    value: ${{ fromJson(steps.config.outputs.json).appLinuxVmAdGroup }}
+  dataLinuxVmAdGroup:
+    description: Name of the DATA RG Linux VM AD Group
+    value: ${{ fromJson(steps.config.outputs.json).dataLinuxVmAdGroup }}
+  appWindowsVmAdGroup:
+    description: Name of the APP RG Windows VM AD Group
+    value: ${{ fromJson(steps.config.outputs.json).appWindowsVmAdGroup }}
+  dataWindowsVmAdGroup:
+    description: Name of the DATA RG Windows VM AD Group
+    value: ${{ fromJson(steps.config.outputs.json).dataWindowsVmAdGroup }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: config
+      shell: bash
+      env:
+        target: ${{ inputs.environment }}
+      run: |
+        content=`cat ./.github/workflows/config.${target,,}.json`
+        content_end=`uuidgen`
+        echo "json<<$content_end" >> $GITHUB_OUTPUT
+        echo "$content" >> $GITHUB_OUTPUT
+        echo "$content_end" >> $GITHUB_OUTPUT

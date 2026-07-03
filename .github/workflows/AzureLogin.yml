@@ -1,0 +1,39 @@
+name: Azure Login [DECOM use 1_platformOperationsManagement]
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: Target environment (nice name)
+        required: true
+        type: choice
+        options:
+          - rg-hub-eastus
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  config:
+    uses: ./.github/workflows/workflow-map-configuration.yaml
+    with:
+      configuration: ${{ inputs.configuration }}
+
+  azure-login:
+    needs: config
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.config.outputs.resource_group }}
+    steps:
+      - name: Azure CLI login
+        uses: azure/login@v3
+        with:
+          client-id: ${{secrets.AZURE_CLIENT_ID}}
+          tenant-id: ${{secrets.AZURE_TENANT_ID}}
+          subscription-id: ${{secrets.AZURE_SUBSCRIPTION_ID}}
+
+      - name: Run az commands
+        run: |
+          az account show
+          # echo "Service Principal:"
+          az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query "{id:id,displayName:displayName,accountEnabled:accountEnabled}"

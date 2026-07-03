@@ -1,0 +1,83 @@
+name: Get Configuration
+
+# Controls when the workflow will run
+on:
+  workflow_call:
+    inputs:
+      target_environment:
+        description: Target environment
+        type: string
+        required: true
+    outputs:
+      config_name:
+        value: ${{ jobs.get_configuration.outputs.config_name }}
+      app_resource_group:
+        value: ${{ jobs.get_configuration.outputs.app_resource_group }}
+      data_resource_group:
+        value: ${{ jobs.get_configuration.outputs.data_resource_group }}
+      aks_cluster_name:
+        value: ${{ jobs.get_configuration.outputs.aks_cluster_name }}
+      region:
+        value: ${{ jobs.get_configuration.outputs.region }}
+      runner_label:
+        value: ${{ jobs.get_configuration.outputs.runner_label }}
+      json:
+        value: ${{ jobs.get_configuration.outputs.json }}
+      appVmName:
+        description: Name of the APP RG VM
+        value: ${{ jobs.get_configuration.outputs.appVmName }}
+      dataVmName:
+        description: Name of the DATA RG VM
+        value: ${{ jobs.get_configuration.outputs.dataVmName }}
+      appLinuxVmAdGroup:
+        description: Name of the APP RG Linux VM AD Group
+        value: ${{ jobs.get_configuration.outputs.appLinuxVmAdGroup }}
+      dataLinuxVmAdGroup:
+        description: Name of the DATA RG Linux VM AD Group
+        value: ${{ jobs.get_configuration.outputs.dataLinuxVmAdGroup }}
+      appWindowsVmAdGroup:
+        description: Name of the APP RG Windows VM AD Group
+        value: ${{ jobs.get_configuration.outputs.appWindowsVmAdGroup }}
+      dataWindowsVmAdGroup:
+        description: Name of the DATA RG Windows VM AD Group
+        value: ${{ jobs.get_configuration.outputs.dataWindowsVmAdGroup }}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  get_configuration:
+    name: "Get Configuration"
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target_environment }}
+
+    outputs:
+      config_name: ${{ fromJson(steps.config.outputs.json).configName }}
+      app_resource_group: ${{ fromJson(steps.config.outputs.json).appResourceGroup }}
+      data_resource_group: ${{ fromJson(steps.config.outputs.json).dataResourceGroup }}
+      aks_cluster_name: ${{ fromJson(steps.config.outputs.json).aks }}
+      region: ${{ fromJson(steps.config.outputs.json).region }}
+      runner_label: ${{ fromJson(steps.config.outputs.json).runnerLabel }}
+      json: ${{ steps.config.outputs.json }}
+      appVmName: ${{ fromJson(steps.config.outputs.json).appVmName }}
+      dataVmName: ${{ fromJson(steps.config.outputs.json).dataVmName }}
+      appLinuxVmAdGroup: ${{ fromJson(steps.config.outputs.json).appLinuxVmAdGroup }}
+      dataLinuxVmAdGroup: ${{ fromJson(steps.config.outputs.json).dataLinuxVmAdGroup }}
+      appWindowsVmAdGroup: ${{ fromJson(steps.config.outputs.json).appWindowsVmAdGroup }}
+      dataWindowsVmAdGroup: ${{ fromJson(steps.config.outputs.json).dataWindowsVmAdGroup }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Get Configuration
+        id: config
+        env:
+          target: ${{ inputs.target_environment }}
+        run: |
+          content=`cat ./.github/workflows/config.${target,,}.json`
+          content_end=`uuidgen`
+          echo "json<<$content_end" >> $GITHUB_OUTPUT
+          echo "$content" >> $GITHUB_OUTPUT
+          echo "$content_end" >> $GITHUB_OUTPUT

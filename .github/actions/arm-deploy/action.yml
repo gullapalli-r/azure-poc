@@ -1,0 +1,125 @@
+name: Deploy ARM Template
+description: Deploy ARM Template
+inputs:
+  name:
+    required: true
+    description: Name for the workflow (will be used in the deployment name)
+    type: string
+  templateFile:
+    required: true
+    description: Path to template file to deploy
+    type: string
+  parametersFile:
+    required: true
+    description: Path to parameters file to apply, use {0} for environment (path/main.{0}.parameters.jsonc)
+    type: string
+  environment:
+    required: true
+    description: Target Environment
+    type: string
+  targetResourceGroup:
+    required: true
+    description: Target Resource Group ('app' or 'data')
+    type: string
+  what_if:
+    description: Execute a what-if instead of the deployment
+    required: false
+    type: boolean
+    default: false
+  include_applicationId:
+    description: Pass an extra parameter to the deployment called 'applicationId' that is the GitHub Actions Service Principal client ID
+    required: false
+    type: boolean
+    default: false
+  extraParameters:
+    description: Extra parameters to pass to the deployment script (typically name="value" pairs)
+    required: false
+    type: string
+    default: ''
+  additionalArguments:
+    description: Extra arguments to pass to the deployment script (typically name="value" pairs) to specify if we should run a what-if
+    required: false
+    type: string
+    default: ''
+  AZURE_CLIENT_ID:
+    required: true
+    type: string
+  AZURE_TENANT_ID:
+    required: true
+    type: string
+  AZURE_SUBSCRIPTION_ID:
+    required: true
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - id: config
+      uses: ./.github/actions/get-configuration
+      with:
+        environment: ${{ inputs.environment }}
+
+    - name: Select Resource Group
+      env:
+        rg: ${{ inputs.targetResourceGroup }}
+        app: ${{ steps.config.outputs.app_resource_group }}
+        data: ${{ steps.config.outputs.data_resource_group }}
+      shell: bash
+      run: |
+        if [[ $rg == "app" ]]; then
+          echo "resource_group=${app}" >> $GITHUB_ENV
+        elif [[ $rg == "data" ]]; then
+          echo "resource_group=${data}" >> $GITHUB_ENV
+        else
+          echo "::error::targetResourceGroup must be 'app' or 'data'"
+          exit 1
+        fi
+
+    - name: Select What If
+      env:
+        whatIf: ${{ inputs.what_if }}
+      shell: bash
+      run: |
+        if [[ $whatIf == "true" ]]; then
+          echo "additionalArguments=--what-if" >> $GITHUB_ENV
+        fi
+
+    # log in to Azure using OpenID Connect
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        client-id: ${{ inputs.AZURE_CLIENT_ID }}
+        tenant-id: ${{ inputs.AZURE_TENANT_ID }}
+        subscription-id: ${{ inputs.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Calculate Object ID of SP
+      shell: bash
+      run: |
+        oid=$(az ad sp show --id ${{ inputs.AZURE_CLIENT_ID }} --query id -o tsv)
+        echo "oid=${oid}" >> $GITHUB_ENV
+
+    - name: Optionally Add Application ID
+      shell: bash
+      run: |
+        if [[ "${{ inputs.include_applicationId }}" == "true" ]]; then
+          echo "extraParameters=applicationId=${{ env.oid }}" >> $GITHUB_ENV  
+        fi
+
+    - name: Resolve Extra Parameters
+      shell: bash
+      run: |
+        echo "extraParameters=${{ env.extraParameters }} ${{ inputs.extraParameters }}" >> $GITHUB_ENV
+
+    # Deploy ARM template
+    - name: Deploy ARM Template
+      id: arm
+      uses: Azure/arm-deploy@v1
+      with:
+        scope: resourcegroup
+        deploymentName: 'GHA-${{ inputs.name }}-${{ github.run_number }}'
+        subscriptionId: ${{ inputs.AZURE_SUBSCRIPTION_ID }}
+        resourceGroupName: ${{ env.resource_group }}
+        region: ${{ env.region }}
+        template: ${{ inputs.templateFile }}
+        parameters: ${{ format(inputs.parametersFile, steps.config.outputs.config_name) }} ${{ env.extraParameters }}
+        additionalArguments: ${{ env.additionalArguments }}
