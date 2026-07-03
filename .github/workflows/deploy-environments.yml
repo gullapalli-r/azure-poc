@@ -1,0 +1,169 @@
+name: Deploy_Envs
+run-name: 'Operation:${{ inputs.operation }}|Environment:${{ inputs.configuration }}|Whatif:${{ inputs.what-if }}'
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - rg-hub-eastus
+
+      what-if:
+        description: Execute a what-if instead of the deployment
+        required: true
+        type: boolean
+        default: true
+      operation:
+        description: Operation to perform
+        required: true
+        type: choice
+        default: nothing
+        options:
+          - nothing
+          - deploy-dev-with-deployment-stack
+          - deploy-preprod-with-deployment-stack
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  config:
+    uses: ./.github/workflows/workflow-map-configuration.yaml
+    with:
+      configuration: ${{ inputs.configuration }}
+
+  # Choose the correct runner for the deployment
+  setup:
+    needs: config
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.config.outputs.resource_group }}
+    outputs:
+      selected_runner: '${{ steps.select_runner.outputs.selected_runner }}'
+
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get first runner name
+        id: select_runner
+        run: |
+          echo runners=${{ needs.config.outputs.runner }}
+          first_runner=$(echo ${{ needs.config.outputs.runner }} | sed 's/ .*//')
+          echo "selected_runner=$first_runner"
+          echo "selected_runner=$first_runner" >> $GITHUB_OUTPUT
+
+  validate:
+    needs:
+      - config
+      - setup
+    # Always validate also if what-if is false to prevent deployment issue
+    if: startsWith(inputs.operation, 'deploy-')
+    name: Validate ${{inputs.configuration}}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.config.outputs.resource_group }}
+    env:
+      oid: ''
+      what-if-parameter: ''
+      runner: ${{ needs.setup.outputs.selected_runner }}
+      is_aks_exist: ${{ needs.setup.outputs.is_aks_exist }}
+    outputs:
+      vm-group: ${{ vars.LINUX_HPA_GROUP }}
+      runner-label: ${{ needs.config.outputs.runner }}
+
+    steps:
+      - name: needs envs
+        run: |
+          echo "$runner"
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Check SPN
+        run: |
+          SPN_ID=$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query "id" -o tsv)
+          echo "[INFO] SPN_ID is"
+          echo $SPN_ID | sed 's/./& /g'
+          echo "[INFO] Clinet id is"
+          echo ${{ secrets.AZURE_CLIENT_ID }} | sed 's/./& /g'
+
+      - name: what-if
+        uses: azure/arm-deploy@v2
+        if: ${{  inputs.operation == 'deploy-dev-with-deployment-stack'}}
+        with:
+          scope: resourcegroup
+          resourceGroupName: ${{ needs.config.outputs.resource_group }}
+          template: ./environments/${{ needs.config.outputs.landing_zone_path }}/main.json
+          deploymentName: 'GHA-${{ github.run_number }}'
+          failOnStdErr: false
+          additionalArguments: '--what-if'
+
+  deploy1:
+    needs:
+      - config
+      - setup
+      - validate
+    if: ${{ startsWith(inputs.operation, 'deploy-') && inputs.what-if == false }}
+    name: Deploy phase ${{inputs.configuration}}
+    runs-on: ${{ needs.setup.outputs.selected_runner }}
+    environment:
+      name: ${{ needs.config.outputs.resource_group }}
+    env:
+      oid: ''
+      what-if-parameter: ''
+      runner: ${{ needs.setup.outputs.selected_runner }}
+    outputs:
+      vm-group: ${{ vars.LINUX_HPA_GROUP }}
+      runner-label: ${{ needs.config.outputs.runner }}
+
+    steps:
+      - name: needs envs
+        run: |
+          echo "$runner"
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Dev with Deployment Stack
+        id: deployment_stack_dev
+        if: ${{ inputs.operation == 'deploy-dev-with-deployment-stack' }}
+        run: |
+          az stack group create --name '${{ needs.config.outputs.deployment_stack_name }}' \
+          --resource-group '${{ needs.config.outputs.resource_group }}' \
+          --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/main.json' \
+          --description "Stamp Deployed for dev"\
+          --action-on-unmanage '${{ needs.config.outputs.action_on_unmanage}}' \
+          --deny-settings-mode 'none'
+
+      - name: Deploy Preprod with Deployment Stack
+        id: deployment_stack_preprod
+        if: ${{ inputs.operation == 'deploy-preprod-with-deployment-stack' }}
+        run: |
+          az stack group create --name '${{ needs.config.outputs.deployment_stack_name }}' \
+          --resource-group '${{ needs.config.outputs.resource_group }}' \
+          --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/main.json' \
+          --description "Stamp Deployed by for preprod \
+          --action-on-unmanage '${{ needs.config.outputs.action_on_unmanage}}' \
+          --deny-settings-mode 'none' 

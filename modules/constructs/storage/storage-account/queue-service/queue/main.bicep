@@ -1,0 +1,136 @@
+metadata name = 'Storage Account Queues'
+metadata description = 'This module deploys a Storage Account Queue.'
+
+@maxLength(24)
+@description('Conditional. The name of the parent Storage Account. Required if the template is used in a standalone deployment.')
+param storageAccountName string
+
+@description('Required. The name of the storage queue to deploy.')
+param name string
+
+@description('Optional. A name-value pair that represents queue metadata.')
+param metadata resourceInput<'Microsoft.Storage/storageAccounts/queueServices/queues@2024-01-01'>.properties.metadata = {}
+
+import { roleAssignmentType } from 'br/public:avm/utl/types/avm-common-types:0.6.1'
+@description('Optional. Array of role assignments to create.')
+param roleAssignments roleAssignmentType[]?
+
+@description('Optional. Enable/Disable usage telemetry for module.')
+param enableTelemetry bool = true
+
+var builtInRoleNames = {
+  Contributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'b24988ac-6180-42a0-ab88-20f7382dd24c')
+  Owner: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
+  Reader: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'acdd72a7-3385-48ef-bd42-f606fba81ae7')
+  'Reader and Data Access': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'c12c1c16-33a1-487b-954d-41c89c60f349'
+  )
+  'Role Based Access Control Administrator': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'f58310d9-a9f6-439a-9e8d-f62e7b41a168'
+  )
+  'Storage Account Backup Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'e5e2a7ff-d759-4cd2-bb51-3152d37e2eb1'
+  )
+  'Storage Account Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '17d1049b-9a84-46fb-8f53-869881c3d3ab'
+  )
+  'Storage Account Key Operator Service Role': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '81a9662b-bebf-436f-a333-f67b29880f12'
+  )
+  'Storage Queue Data Contributor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '974c5e8b-45b9-4653-ba55-5f855dd0fb88'
+  )
+  'Storage Queue Data Message Processor': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '8a0f0c08-91a1-4084-bc3d-661d67233fed'
+  )
+  'Storage Queue Data Message Sender': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    'c6a89b2d-59bc-44d0-9896-0f6e12d7b80a'
+  )
+  'Storage Queue Data Reader': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '19e7f393-937e-4f77-808e-94535e297925'
+  )
+  'User Access Administrator': subscriptionResourceId(
+    'Microsoft.Authorization/roleDefinitions',
+    '18d7d88d-d35e-4fb5-a5c3-7773c20a72d9'
+  )
+}
+
+var formattedRoleAssignments = [
+  for (roleAssignment, index) in (roleAssignments ?? []): union(roleAssignment, {
+    roleDefinitionId: builtInRoleNames[?roleAssignment.roleDefinitionIdOrName] ?? (contains(
+        roleAssignment.roleDefinitionIdOrName,
+        '/providers/Microsoft.Authorization/roleDefinitions/'
+      )
+      ? roleAssignment.roleDefinitionIdOrName
+      : subscriptionResourceId('Microsoft.Authorization/roleDefinitions', roleAssignment.roleDefinitionIdOrName))
+  })
+]
+
+#disable-next-line no-deployments-resources
+resource avmTelemetry 'Microsoft.Resources/deployments@2024-03-01' = if (enableTelemetry) {
+  name: '46d3xbcp.res.storage-queue.${replace('-..--..-', '.', '-')}.${substring(uniqueString(deployment().name), 0, 4)}'
+  properties: {
+    mode: 'Incremental'
+    template: {
+      '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#'
+      contentVersion: '1.0.0.0'
+      resources: []
+      outputs: {
+        telemetry: {
+          type: 'String'
+          value: 'For more information, see https://aka.ms/avm/TelemetryInfo'
+        }
+      }
+    }
+  }
+}
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2025-06-01' existing = {
+  name: storageAccountName
+
+  resource queueServices 'queueServices@2025-06-01' existing = {
+    name: 'default'
+  }
+}
+
+resource queue 'Microsoft.Storage/storageAccounts/queueServices/queues@2025-06-01' = {
+  name: name
+  parent: storageAccount::queueServices
+  properties: {
+    metadata: metadata
+  }
+}
+
+resource queue_roleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-01' = [
+  for (roleAssignment, index) in (formattedRoleAssignments ?? []): {
+    name: roleAssignment.?name ?? guid(queue.id, roleAssignment.principalId, roleAssignment.roleDefinitionId)
+    properties: {
+      roleDefinitionId: roleAssignment.roleDefinitionId
+      principalId: roleAssignment.principalId
+      description: roleAssignment.?description
+      principalType: roleAssignment.?principalType
+      condition: roleAssignment.?condition
+      conditionVersion: !empty(roleAssignment.?condition) ? (roleAssignment.?conditionVersion ?? '2.0') : null // Must only be set if condtion is set
+      delegatedManagedIdentityResourceId: roleAssignment.?delegatedManagedIdentityResourceId
+    }
+    scope: queue
+  }
+]
+
+@description('The name of the deployed queue.')
+output name string = queue.name
+
+@description('The resource ID of the deployed queue.')
+output resourceId string = queue.id
+
+@description('The resource group of the deployed queue.')
+output resourceGroupName string = resourceGroup().name

@@ -9,7 +9,7 @@
     "DEPLOYMENT_STACK_NAME": "rg-hub-eastus",
     "ACTION_ON_UNMANAGE": "detachAll",
     "PFX": "",
-    "RUNNER": [""],
+    "RUNNER": ["ubuntu-latest"],
     "RUNNER_VM": "",
     "AKS_NAMESPACES": [],
   },
