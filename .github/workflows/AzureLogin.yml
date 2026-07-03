@@ -1,4 +1,4 @@
-name: Azure Login [DECOM use 1_platformOperationsManagement]
+name: Azure Login
 on:
   workflow_dispatch:
     inputs:
