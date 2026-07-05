@@ -8,6 +8,8 @@ on:
         type: choice
         options:
           - rg-hub-eastus
+          - dev
+          - preprod
 
 permissions:
   id-token: write
