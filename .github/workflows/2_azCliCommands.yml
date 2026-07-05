@@ -9,6 +9,8 @@ on:
         type: choice
         options:
           - rg-hub-eastus
+          - dev
+          - preprod
 
       command:
         description: Input az cli command
