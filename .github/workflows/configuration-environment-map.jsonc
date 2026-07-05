@@ -1,17 +1,21 @@
 {
-  "rg-hub-eastus": {
-    "RESOURCE_GROUP": "rg-hub-eastus",
-    "APP_RESOURCE_GROUP": "rg-hub-eastus",
-    "LANDING_ZONE_PATH": "pre-prod/eastus/hub",
-    "AKS": "",
-    "KEYVAULT": "",
+  // dev environment
+  "dev": {
+    "RESOURCE_GROUP": "rg-poc-dev-eastus",
     "REGION": "eastus",
-    "DEPLOYMENT_STACK_NAME": "rg-hub-eastus",
+    "DEPLOYMENT_STACK_NAME": "poc-dev",
     "ACTION_ON_UNMANAGE": "detachAll",
-    "PFX": "",
-    "RUNNER": ["ubuntu-latest"],
-    "RUNNER_VM": "",
-    "AKS_NAMESPACES": [],
+    "LANDING_ZONE_PATH": "environments/dev",
+    "RUNNER": ["ubuntu-latest"]
   },
+  // pre-prod environment
+  "preprod": {
+    "RESOURCE_GROUP": "rg-poc-preprod-eastus",
+    "REGION": "eastus",
+    "DEPLOYMENT_STACK_NAME": "poc-preprod",
+    "ACTION_ON_UNMANAGE": "detachAll",
+    "LANDING_ZONE_PATH": "environments/preprod",
+    "RUNNER": ["ubuntu-latest"]
+  }
 }
 

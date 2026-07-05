@@ -1,0 +1,91 @@
+name: Deploy Azure Constructs
+run-name: 'Operation:${{ inputs.operation }} | Env:${{ inputs.configuration }} | WhatIf:${{ inputs.what-if }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - preprod
+
+      operation:
+        description: 'Construct to deploy'
+        required: true
+        type: choice
+        options:
+          - deploy-storage-account
+          - deploy-private-endpoint
+
+      constructVersion:
+        description: 'Construct version (e.g. 0.2.0)'
+        required: true
+        type: string
+        default: '0.2.0'
+
+      parametersFile:
+        description: 'Parameters file path relative to repo root'
+        required: true
+        type: string
+
+      what-if:
+        description: 'Run as what-if instead of deploying'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # ── Step 1: resolve environment from config map ──────────────────────────
+  config:
+    uses: ./.github/workflows/workflow-map-configuration.yaml
+    with:
+      configuration: ${{ inputs.configuration }}
+
+  # ── Step 2a: deploy storage-account construct ─────────────────────────────
+  deploy-storage-account:
+    name: 'Storage Account [${{ inputs.configuration }}]'
+    if: inputs.operation == 'deploy-storage-account'
+    needs: config
+    uses: gullapalli-r/azure-iac/.github/workflows/deploy-construct.yml@main   # ← pin to tag after merging e.g. @constructs/storage-account/0.2.0
+    with:
+      construct: storage-account
+      constructVersion: ${{ inputs.constructVersion }}
+      parametersFile: ${{ inputs.parametersFile }}
+      env: ${{ needs.config.outputs.resource_group }}
+      azureRegion: ${{ needs.config.outputs.region }}
+      resourceGroup: ${{ needs.config.outputs.resource_group }}
+      deploymentStackName: ${{ needs.config.outputs.deployment_stack_name }}
+      actionOnUnmanage: ${{ needs.config.outputs.action_on_unmanage }}
+      whatIf: ${{ inputs.what-if }}
+    secrets:
+      SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+  # ── Step 2b: deploy private-endpoint construct ────────────────────────────
+  deploy-private-endpoint:
+    name: 'Private Endpoint [${{ inputs.configuration }}]'
+    if: inputs.operation == 'deploy-private-endpoint'
+    needs: config
+    uses: gullapalli-r/azure-iac/.github/workflows/deploy-construct.yml@main
+    with:
+      construct: private-endpoint
+      constructVersion: ${{ inputs.constructVersion }}
+      parametersFile: ${{ inputs.parametersFile }}
+      env: ${{ needs.config.outputs.resource_group }}
+      azureRegion: ${{ needs.config.outputs.region }}
+      resourceGroup: ${{ needs.config.outputs.resource_group }}
+      deploymentStackName: ${{ needs.config.outputs.deployment_stack_name }}
+      actionOnUnmanage: ${{ needs.config.outputs.action_on_unmanage }}
+      whatIf: ${{ inputs.what-if }}
+    secrets:
+      SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
