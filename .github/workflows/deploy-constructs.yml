@@ -19,6 +19,7 @@ on:
         options:
           - deploy-storage-account
           - deploy-private-endpoint
+          - deploy-virtual-network
 
       constructVersion:
         description: 'Construct version (e.g. 0.2.0)'
@@ -77,6 +78,27 @@ jobs:
     uses: gullapalli-r/azure-iac/.github/workflows/deploy-construct.yml@main
     with:
       construct: private-endpoint
+      constructVersion: ${{ inputs.constructVersion }}
+      parametersFile: ${{ inputs.parametersFile }}
+      env: ${{ needs.config.outputs.resource_group }}
+      azureRegion: ${{ needs.config.outputs.region }}
+      resourceGroup: ${{ needs.config.outputs.resource_group }}
+      deploymentStackName: ${{ needs.config.outputs.deployment_stack_name }}
+      actionOnUnmanage: ${{ needs.config.outputs.action_on_unmanage }}
+      whatIf: ${{ inputs.what-if }}
+    secrets:
+      SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+  # ── Step 2c: deploy virtual-network construct ─────────────────────────────
+  deploy-virtual-network:
+    name: 'Virtual Network [${{ inputs.configuration }}]'
+    if: inputs.operation == 'deploy-virtual-network'
+    needs: config
+    uses: gullapalli-r/azure-iac/.github/workflows/deploy-construct.yml@main
+    with:
+      construct: virtual-network
       constructVersion: ${{ inputs.constructVersion }}
       parametersFile: ${{ inputs.parametersFile }}
       env: ${{ needs.config.outputs.resource_group }}

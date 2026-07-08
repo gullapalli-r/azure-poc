@@ -1,0 +1,99 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "name": {
+      "value": "SPOKE-PoC-EastUS-dev-01"
+    },
+    "location": {
+      "value": "eastus"
+    },
+    "addressPrefixes": {
+      "value": [
+        "10.20.0.0/16"
+      ]
+    },
+    "networkSecurityGroups": {
+      "value": [
+        {
+          "name": "nsg-poc-eastus-dev-private",
+          "securityRules": [
+            {
+              "name": "AllowHttpsIn",
+              "properties": {
+                "access": "Allow",
+                "direction": "Inbound",
+                "priority": 100,
+                "protocol": "Tcp",
+                "sourceAddressPrefix": "*",
+                "sourcePortRange": "*",
+                "destinationAddressPrefix": "*",
+                "destinationPortRange": "443",
+                "description": "Allow HTTPS inbound"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "routeTables": {
+      "value": [
+        {
+          "name": "rt-poc-eastus-dev-private",
+          "disableBgpRoutePropagation": false,
+          "routes": [
+            {
+              "name": "default-to-firewall",
+              "properties": {
+                "addressPrefix": "0.0.0.0/0",
+                "nextHopType": "VirtualAppliance",
+                "nextHopIpAddress": "10.10.0.4"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "subnets": {
+      "value": [
+        {
+          "name": "SNET-PoC-EastUS-dev-PrivateLink",
+          "addressPrefix": "10.20.1.0/24",
+          "networkSecurityGroupName": "nsg-poc-eastus-dev-private",
+          "routeTableName": "rt-poc-eastus-dev-private",
+          "serviceEndpoints": [
+            "Microsoft.Storage"
+          ],
+          "privateEndpointNetworkPolicies": "Disabled",
+          "privateLinkServiceNetworkPolicies": "Enabled"
+        }
+      ]
+    },
+    "peerings": {
+      "value": [
+        {
+          "name": "peer-spoke-to-hub",
+          "remoteVirtualNetworkResourceId": "/subscriptions/<subId>/resourceGroups/<rgName>/providers/Microsoft.Network/virtualNetworks/<hubVnetName>",
+          "allowForwardedTraffic": true,
+          "allowGatewayTransit": false,
+          "allowVirtualNetworkAccess": true,
+          "doNotVerifyRemoteGateways": true,
+          "useRemoteGateways": false,
+          "remotePeeringEnabled": true,
+          "remotePeeringName": "peer-hub-to-spoke",
+          "remotePeeringAllowForwardedTraffic": true,
+          "remotePeeringAllowGatewayTransit": true,
+          "remotePeeringAllowVirtualNetworkAccess": true,
+          "remotePeeringDoNotVerifyRemoteGateways": true,
+          "remotePeeringUseRemoteGateways": false
+        }
+      ]
+    },
+    "tags": {
+      "value": {
+        "env": "dev",
+        "region": "eastus"
+      }
+    }
+  }
+}
