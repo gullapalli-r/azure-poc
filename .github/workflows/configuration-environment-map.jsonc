@@ -1,6 +1,6 @@
 {
   // dev environment
-  "dev": {
+  "rg-poc-dev-eastus": {
     "RESOURCE_GROUP": "rg-poc-dev-eastus",
     "REGION": "eastus",
     "DEPLOYMENT_STACK_NAME": "poc-dev",
@@ -8,13 +8,13 @@
     "LANDING_ZONE_PATH": "environments/dev/eastus",
     "RUNNER": ["ubuntu-latest"]
   },
-  // pre-prod environment
-  "preprod": {
-    "RESOURCE_GROUP": "rg-poc-preprod-eastus",
+  // prod environment
+  "rg-poc-prod-eastus": {
+    "RESOURCE_GROUP": "rg-poc-prod-eastus",
     "REGION": "eastus",
-    "DEPLOYMENT_STACK_NAME": "poc-preprod",
+    "DEPLOYMENT_STACK_NAME": "rg-poc-prod-eastus",
     "ACTION_ON_UNMANAGE": "detachAll",
-    "LANDING_ZONE_PATH": "environments/preprod/eastus",
+    "LANDING_ZONE_PATH": "environments/prod/eastus",
     "RUNNER": ["ubuntu-latest"]
   }
 }

@@ -1,5 +1,6 @@
 name: Deploy_Envs
-run-name: 'Operation:${{ inputs.operation }}|Environment:${{ inputs.configuration }}|Whatif:${{ inputs.what-if }}'
+run-name: 'Environment:${{ inputs.configuration }} | WhatIf:${{ inputs.what-if }}'
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,22 +9,24 @@ on:
         required: true
         type: choice
         options:
-          - rg-hub-eastus
+          - rg-poc-dev-eastus
+          - rg-poc-prod-eastus
 
       what-if:
         description: Execute a what-if instead of the deployment
         required: true
         type: boolean
         default: true
+
       operation:
         description: Operation to perform
         required: true
         type: choice
-        default: nothing
+        default: deploy-all
         options:
-          - nothing
-          - deploy-dev-with-deployment-stack
-          - deploy-preprod-with-deployment-stack
+          - deploy-all
+          - deploy-virtual-network
+          - deploy-storage-account
 
 permissions:
   id-token: write
@@ -35,55 +38,12 @@ jobs:
     with:
       configuration: ${{ inputs.configuration }}
 
-  # Choose the correct runner for the deployment
-  setup:
+  deploy-virtual-network:
     needs: config
+    if: ${{ inputs.operation == 'deploy-all' || inputs.operation == 'deploy-virtual-network' }}
     runs-on: ubuntu-latest
-    environment:
-      name: ${{ needs.config.outputs.resource_group }}
-    outputs:
-      selected_runner: '${{ steps.select_runner.outputs.selected_runner }}'
-
+    environment: ${{ needs.config.outputs.resource_group }}
     steps:
-      - name: Login to Azure
-        uses: azure/login@v2
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Get first runner name
-        id: select_runner
-        run: |
-          echo runners=${{ needs.config.outputs.runner }}
-          first_runner=$(echo ${{ needs.config.outputs.runner }} | sed 's/ .*//')
-          echo "selected_runner=$first_runner"
-          echo "selected_runner=$first_runner" >> $GITHUB_OUTPUT
-
-  validate:
-    needs:
-      - config
-      - setup
-    # Always validate also if what-if is false to prevent deployment issue
-    if: startsWith(inputs.operation, 'deploy-')
-    name: Validate ${{inputs.configuration}}
-    runs-on: ubuntu-latest
-    environment:
-      name: ${{ needs.config.outputs.resource_group }}
-    env:
-      oid: ''
-      what-if-parameter: ''
-      runner: ${{ needs.setup.outputs.selected_runner }}
-      is_aks_exist: ${{ needs.setup.outputs.is_aks_exist }}
-    outputs:
-      vm-group: ${{ vars.LINUX_HPA_GROUP }}
-      runner-label: ${{ needs.config.outputs.runner }}
-
-    steps:
-      - name: needs envs
-        run: |
-          echo "$runner"
-
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -94,48 +54,29 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Check SPN
+      - name: VNet What-If
+        if: ${{ inputs.what-if == true }}
         run: |
-          SPN_ID=$(az ad sp show --id "${{ secrets.AZURE_CLIENT_ID }}" --query "id" -o tsv)
-          echo "[INFO] SPN_ID is"
-          echo $SPN_ID | sed 's/./& /g'
-          echo "[INFO] Clinet id is"
-          echo ${{ secrets.AZURE_CLIENT_ID }} | sed 's/./& /g'
+          az deployment group what-if \
+            --resource-group '${{ needs.config.outputs.resource_group }}' \
+            --template-file './environments/dev/eastus/vnet/main.bicep' \
+            --parameters './environments/dev/eastus/vnet/main.${{ inputs.configuration }}.bicepparam'
 
-      - name: what-if
-        uses: azure/arm-deploy@v2
-        if: ${{  inputs.operation == 'deploy-dev-with-deployment-stack'}}
-        with:
-          scope: resourcegroup
-          resourceGroupName: ${{ needs.config.outputs.resource_group }}
-          template: ./environments/${{ needs.config.outputs.landing_zone_path }}/main.json
-          deploymentName: 'GHA-${{ github.run_number }}'
-          failOnStdErr: false
-          additionalArguments: '--what-if'
+      - name: Deploy VNet
+        if: ${{ inputs.what-if == false }}
+        run: |
+          az deployment group create \
+            --resource-group '${{ needs.config.outputs.resource_group }}' \
+            --name "vnet-${{ inputs.configuration }}-${{ github.run_number }}" \
+            --template-file './environments/dev/eastus/vnet/main.bicep' \
+            --parameters './environments/dev/eastus/vnet/main.${{ inputs.configuration }}.bicepparam'
 
-  deploy1:
-    needs:
-      - config
-      - setup
-      - validate
-    if: ${{ startsWith(inputs.operation, 'deploy-') && inputs.what-if == false }}
-    name: Deploy phase ${{inputs.configuration}}
-    runs-on: ${{ needs.setup.outputs.selected_runner }}
-    environment:
-      name: ${{ needs.config.outputs.resource_group }}
-    env:
-      oid: ''
-      what-if-parameter: ''
-      runner: ${{ needs.setup.outputs.selected_runner }}
-    outputs:
-      vm-group: ${{ vars.LINUX_HPA_GROUP }}
-      runner-label: ${{ needs.config.outputs.runner }}
-
+  deploy-storage-account:
+    needs: config
+    if: ${{ inputs.operation == 'deploy-all' || inputs.operation == 'deploy-storage-account' }}
+    runs-on: ubuntu-latest
+    environment: ${{ needs.config.outputs.resource_group }}
     steps:
-      - name: needs envs
-        run: |
-          echo "$runner"
-
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -146,24 +87,19 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy Dev with Deployment Stack
-        id: deployment_stack_dev
-        if: ${{ inputs.operation == 'deploy-dev-with-deployment-stack' }}
+      - name: Storage What-If
+        if: ${{ inputs.what-if == true }}
         run: |
-          az stack group create --name '${{ needs.config.outputs.deployment_stack_name }}' \
-          --resource-group '${{ needs.config.outputs.resource_group }}' \
-          --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/main.json' \
-          --description "Stamp Deployed for dev"\
-          --action-on-unmanage '${{ needs.config.outputs.action_on_unmanage}}' \
-          --deny-settings-mode 'none'
+          az deployment group what-if \
+            --resource-group '${{ needs.config.outputs.resource_group }}' \
+            --template-file './environments/dev/eastus/stg/main.bicep' \
+            --parameters './environments/dev/eastus/stg/main.${{ inputs.configuration }}.bicepparam'
 
-      - name: Deploy Preprod with Deployment Stack
-        id: deployment_stack_preprod
-        if: ${{ inputs.operation == 'deploy-preprod-with-deployment-stack' }}
+      - name: Deploy Storage
+        if: ${{ inputs.what-if == false }}
         run: |
-          az stack group create --name '${{ needs.config.outputs.deployment_stack_name }}' \
-          --resource-group '${{ needs.config.outputs.resource_group }}' \
-          --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/main.json' \
-          --description "Stamp Deployed by for preprod \
-          --action-on-unmanage '${{ needs.config.outputs.action_on_unmanage}}' \
-          --deny-settings-mode 'none' 
+          az deployment group create \
+            --resource-group '${{ needs.config.outputs.resource_group }}' \
+            --name "stg-${{ inputs.configuration }}-${{ github.run_number }}" \
+            --template-file './environments/dev/eastus/stg/main.bicep' \
+            --parameters './environments/dev/eastus/stg/main.${{ inputs.configuration }}.bicepparam'
