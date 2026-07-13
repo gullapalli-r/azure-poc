@@ -49,7 +49,7 @@ var devVnetConfig = [
 
 module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.4.0' = [
   for (vnet, i) in devVnetConfig: {
-    name: 'vnet-dev-${i}'
+    name: '${deployment().name}-vnet-dev-${i}'
     params: {
       name: vnet.name
       location: location

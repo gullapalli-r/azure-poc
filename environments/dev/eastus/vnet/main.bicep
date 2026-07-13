@@ -17,7 +17,7 @@ param hubVnetResourceId string
 param tags object = {}
 
 module dev './main.dev.bicep' = if (environmentType == 'dev') {
-  name: 'vnet-dev'
+  name: '${deployment().name}-vnet-dev'
   params: {
     location: location
     hubVnetResourceId: hubVnetResourceId
@@ -26,7 +26,7 @@ module dev './main.dev.bicep' = if (environmentType == 'dev') {
 }
 
 module prod './main.prod.bicep' = if (environmentType == 'prod') {
-  name: 'vnet-prod'
+  name: '${deployment().name}-vnet-prod'
   params: {
     location: location
     hubVnetResourceId: hubVnetResourceId
