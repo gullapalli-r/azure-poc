@@ -47,9 +47,10 @@ var devVnetConfig = [
   }
 ]
 
-module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.4.0' = [
+@batchSize(1)
+module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.5.0' = [
   for (vnet, i) in devVnetConfig: {
-    name: '${deployment().name}-vnet-dev-${i}'
+    name: '${deployment().name}-${i}'
     params: {
       name: vnet.name
       location: location
@@ -105,6 +106,15 @@ module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.
           useRemoteGateways: false
           doNotVerifyRemoteGateways: true
           enableOnlyIPv6Peering: false
+
+          // ── Reverse peering (hub → spoke) ──────────────────────────────────
+          remotePeeringEnabled: true
+          remotePeeringName: 'peer-HUB-USEast-to-${vnet.name}'
+          remotePeeringAllowVirtualNetworkAccess: true
+          remotePeeringAllowForwardedTraffic: true
+          remotePeeringAllowGatewayTransit: false
+          remotePeeringUseRemoteGateways: false
+          remotePeeringDoNotVerifyRemoteGateways: true
         }
       ]
     }

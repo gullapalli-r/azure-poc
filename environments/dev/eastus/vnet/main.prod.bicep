@@ -61,7 +61,7 @@ var prodVnetConfig = [
   }
 ]
 
-module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.4.0' = [
+module vnets 'br:bicepiacregistry.azurecr.io/bicep/constructs/virtual-network:0.5.0' = [
   for (vnet, i) in prodVnetConfig: {
     name: '${deployment().name}-vnet-prod-${i}'
     params: {
