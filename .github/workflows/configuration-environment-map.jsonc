@@ -5,7 +5,7 @@
     "REGION": "eastus",
     "DEPLOYMENT_STACK_NAME": "poc-dev",
     "ACTION_ON_UNMANAGE": "detachAll",
-    "LANDING_ZONE_PATH": "environments/dev/eastus",
+    "LANDING_ZONE_PATH": "dev/eastus",
     "RUNNER": ["ubuntu-latest"]
   },
   // prod environment
@@ -14,7 +14,7 @@
     "REGION": "eastus",
     "DEPLOYMENT_STACK_NAME": "rg-poc-prod-eastus",
     "ACTION_ON_UNMANAGE": "detachAll",
-    "LANDING_ZONE_PATH": "environments/prod/eastus",
+    "LANDING_ZONE_PATH": "prod/eastus",
     "RUNNER": ["ubuntu-latest"]
   }
 }
