@@ -4,7 +4,7 @@
     "RESOURCE_GROUP": "rg-poc-dev-eastus",
     "REGION": "eastus",
     "DEPLOYMENT_STACK_NAME": "poc-dev-stack",
-    "ACTION_ON_UNMANAGE": "detachAll",
+    "ACTION_ON_UNMANAGE": "deleteAll",
     "LANDING_ZONE_PATH": "dev/eastus",
     "RUNNER": ["ubuntu-latest"]
   },
@@ -13,7 +13,7 @@
     "RESOURCE_GROUP": "rg-poc-prod-eastus",
     "REGION": "eastus",
     "DEPLOYMENT_STACK_NAME": "poc-prod-stack",
-    "ACTION_ON_UNMANAGE": "detachAll",
+    "ACTION_ON_UNMANAGE": "deleteAll",
     "LANDING_ZONE_PATH": "prod/eastus",
     "RUNNER": ["ubuntu-latest"]
   }
