@@ -1,6 +1,5 @@
 name: Deploy_Envs
-run-name: 'Env:${{ inputs.configuration }} | Op:${{ inputs.operation }} | WhatIf:${{ inputs.what-if }}'
-
+run-name: 'Environment:${{ inputs.configuration }} | Operation:${{ inputs.operation }} | WhatIf:${{ inputs.what-if }}'
 on:
   workflow_dispatch:
     inputs:
@@ -11,11 +10,13 @@ on:
         options:
           - rg-poc-dev-eastus
           - rg-poc-prod-eastus
+
       what-if:
         description: Execute a what-if instead of the deployment
         required: true
         type: boolean
         default: true
+
       operation:
         description: Operation to perform
         required: true
@@ -58,8 +59,8 @@ jobs:
         run: |
           az deployment group what-if \
             --resource-group '${{ needs.config.outputs.resource_group }}' \
-            --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/vnet/main.bicep' \
-            --parameters './environments/${{ needs.config.outputs.landing_zone_path }}/vnet/main.${{ inputs.configuration }}.bicepparam'
+            --template-file './environments/dev/eastus/vnet/main.bicep' \
+            --parameters './environments/dev/eastus/vnet/main.${{ inputs.configuration }}.bicepparam'
 
       - name: Deploy VNet
         if: ${{ inputs.what-if == false }}
@@ -67,8 +68,8 @@ jobs:
           az deployment group create \
             --resource-group '${{ needs.config.outputs.resource_group }}' \
             --name "vnet-${{ inputs.configuration }}-${{ github.run_number }}" \
-            --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/vnet/main.bicep' \
-            --parameters './environments/${{ needs.config.outputs.landing_zone_path }}/vnet/main.${{ inputs.configuration }}.bicepparam'
+            --template-file './environments/dev/eastus/vnet/main.bicep' \
+            --parameters './environments/dev/eastus/vnet/main.${{ inputs.configuration }}.bicepparam'
 
   deploy-storage-account:
     needs: config
@@ -91,8 +92,8 @@ jobs:
         run: |
           az deployment group what-if \
             --resource-group '${{ needs.config.outputs.resource_group }}' \
-            --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/stg/main.bicep' \
-            --parameters './environments/${{ needs.config.outputs.landing_zone_path }}/stg/main.${{ inputs.configuration }}.bicepparam'
+            --template-file './environments/dev/eastus/stg/main.bicep' \
+            --parameters './environments/dev/eastus/stg/main.${{ inputs.configuration }}.bicepparam'
 
       - name: Deploy Storage
         if: ${{ inputs.what-if == false }}
@@ -100,8 +101,8 @@ jobs:
           az deployment group create \
             --resource-group '${{ needs.config.outputs.resource_group }}' \
             --name "stg-${{ inputs.configuration }}-${{ github.run_number }}" \
-            --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/stg/main.bicep' \
-            --parameters './environments/${{ needs.config.outputs.landing_zone_path }}/stg/main.${{ inputs.configuration }}.bicepparam'
+            --template-file './environments/dev/eastus/stg/main.bicep' \
+            --parameters './environments/dev/eastus/stg/main.${{ inputs.configuration }}.bicepparam'
 
   validate-platform-services:
     needs: config
@@ -125,7 +126,6 @@ jobs:
           az deployment group what-if \
             --resource-group '${{ needs.config.outputs.resource_group }}' \
             --template-file './environments/${{ needs.config.outputs.landing_zone_path }}/main.platform.bicep'
-
   deploy-platform-services:
     needs: 
       - config
@@ -147,7 +147,7 @@ jobs:
       - name: Extract Platform Services Stamp Version
         id: get-version
         run: |
-          PLATFORM_VERSION=$(grep -oP "platform-services:\K[0-9\.]+" ./environments/${{ needs.config.outputs.landing_zone_path }}/main.platform.bicep | head -1)
+          PLATFORM_VERSION=$(grep -oP "platform-services:\K[0-9\.]+" ./environments/dev/eastus/main.platform.bicep | head -1)
           echo "version=${PLATFORM_VERSION}" >> $GITHUB_OUTPUT
 
       - name: Deploy Platform Services with Deployment Stack
